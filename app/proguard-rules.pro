@@ -1,63 +1,41 @@
-# Правила для LoudnessCodecController
--keep class android.media.LoudnessCodecController { void <init>(); }
--keep class android.media.LoudnessCodecController$OnLoudnessCodecUpdateListener { void <init>(); }
--dontwarn android.media.LoudnessCodecController$OnLoudnessCodecUpdateListener
--dontwarn android.media.LoudnessCodecController
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Правила для Google Play Services
--keep public class com.google.vending.licensing.ILicensingService { void <init>(); }
--keep public class com.android.vending.licensing.ILicensingService { void <init>(); }
--keep public class com.google.android.vending.licensing.ILicensingService { void <init>(); }
--keep public class com.google.android.gms.common.internal.ReflectedParcelable { void <init>(); }
--keep,allowshrinking class * implements com.google.android.gms.common.internal.ReflectedParcelable { void <init>(); }
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# Правила для аннотаций
--keep @interface android.support.annotation.Keep { void <init>(); }
--keep @androidx.annotation.Keep class * { void <init>(); }
--keep class android.support.annotation.Keep { void <init>(); }
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
 
-# Дополнительные правила
--keep @interface com.google.android.gms.common.annotation.KeepName { void <init>(); }
--keep,allowshrinking @com.google.android.gms.common.annotation.KeepName class * { void <init>(); }
--keep @interface com.google.android.gms.common.util.DynamiteApi { void <init>(); }
--keep,allowshrinking public class androidx.webkit.WebViewClientCompat { void <init>(); }
--keep class * extends androidx.work.Worker { void <init>(); }
--keep class * extends androidx.work.InputMerger { void <init>(); }
--keep class androidx.work.WorkerParameters { void <init>(); }
--keep !interface * implements androidx.lifecycle.LifecycleObserver { void <init>(); }
--keep,allowshrinking class * extends androidx.startup.Initializer { void <init>(); }
--keep class * implements androidx.versionedparcelable.VersionedParcelable { void <init>(); }
--keep public class androidx.versionedparcelable.ParcelImpl { void <init>(); }
--keep class * extends androidx.room.RoomDatabase { void <init>(); }
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile
 
-# Правила для вашего приложения
--keep class com.yuliitezary.gpt.MainActivity { *; }
-
-# Сохранение аттрибутов
--keepattributes *Annotation*
--keepattributes SourceFile,LineNumberTable
--keepattributes Signature
-
-# Правила для WebView
--keep class android.webkit.** { *; }
--keep class * extends android.webkit.WebChromeClient { *; }
--keep class * extends android.webkit.WebViewClient { *; }
-
-# Правила для JavaScript интерфейсов
+# Сохраняем WebView JavaScript интерфейс
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Общие правила
--keep public class * extends android.app.Activity
--keep public class * extends android.app.Application
--keep public class * extends android.app.Service
--keep public class * extends android.content.BroadcastReceiver
--keep public class * extends android.content.ContentProvider
+# Сохраняем основные классы приложения
+-keep class com.yuliitezary.gpt.MainActivity { *; }
 
-# Правила для сохранения конструкторов
--keepclassmembers class * {
-    public <init>(android.content.Context);
-    public <init>(android.content.Context, android.util.AttributeSet);
-    public <init>(android.content.Context, android.util.AttributeSet, int);
+# Базовые правила
+-keepattributes SourceFile,LineNumberTable
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exceptions
+
+# Сохраняем R классы для корректной работы ресурсов
+-keep class **.R
+-keep class **.R$* {
+    <fields>;
 }

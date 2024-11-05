@@ -1,127 +1,154 @@
 package com.yuliitezary.gpt
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.Intent
-import android.graphics.Bitmap
+import android.content.pm.PackageManager
 import android.net.Uri
-import android.net.http.SslError
 import android.os.Build
+import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.webkit.*
-import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.activity.OnBackPressedCallback
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
+import android.view.WindowManager
+import android.graphics.Rect
 
-/**
- * Главная активность приложения, отвечающая за отображение веб-интерфейса ChatGPT
- * и управление рекламой
- */
 class MainActivity : AppCompatActivity() {
-
     private lateinit var webView: WebView
-    private lateinit var mAdView: AdView
+    private lateinit var adView: AdView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var originalHeight = 0
 
-    private val filePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val data: Intent? = result.data
-            val results = if (data?.clipData != null) {
-                val count = data.clipData?.itemCount ?: 0
-                Array(count) { i -> data.clipData?.getItemAt(i)?.uri!! }
-            } else {
-                data?.data?.let { arrayOf(it) }
-            }
-            filePathCallback?.onReceiveValue(results ?: arrayOf())
-        } else {
-            filePathCallback?.onReceiveValue(arrayOf())
-        }
+    private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            filePathCallback?.onReceiveValue(arrayOf(it))
+        } ?: filePathCallback?.onReceiveValue(null)
         filePathCallback = null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Скрываем статус бар
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.statusBars())
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        
         setContentView(R.layout.activity_main)
 
-        setupWebView(savedInstanceState)
-        setupAds()
-        setupBackHandler()
-    }
-
-    private fun setupWebView(savedInstanceState: Bundle?) {
-        webView = findViewById(R.id.webView)
-
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-
-            allowFileAccess = false
-            allowContentAccess = false
-
-            @Suppress("DEPRECATION")
-            allowFileAccessFromFileURLs = false
-            @Suppress("DEPRECATION")
-            allowUniversalAccessFromFileURLs = false
-
-            databaseEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-            setSupportZoom(true)
-            builtInZoomControls = true
-            displayZoomControls = false
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            }
-
-            cacheMode = WebSettings.LOAD_DEFAULT
-            mediaPlaybackRequiresUserGesture = true
-            setGeolocationEnabled(false)
+        // Настраиваем обработку клавиатуры
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, windowInsets ->
+            val imeHeight = windowInsets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            webView.translationY = -imeHeight.toFloat()
+            WindowInsetsCompat.CONSUMED
         }
 
+        setupWebView()
+        setupBackHandler()
+        setupBannerAd()
+    }
+
+    private fun setupWebView() {
+        webView = findViewById(R.id.webView)
+        webView.webViewClient = WebViewClient()
         webView.webChromeClient = object : WebChromeClient() {
-            @Deprecated("Deprecated in Java")
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
                 fileChooserParams: FileChooserParams?
             ): Boolean {
                 this@MainActivity.filePathCallback = filePathCallback
-                openFileChooser()
+                getContent.launch("*/*")
                 return true
             }
         }
 
-        webView.webViewClient = object : WebViewClient() {
-            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
-                showSecurityAlert(error)
-                handler?.cancel()
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return !isUrlSafe(url)
-            }
+        val settings = webView.settings
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            loadsImagesAutomatically = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState)
-        } else {
-            webView.loadUrl("https://chatgptchatapp.com")
-        }
-    }
+        // Инжектируем CSS и JavaScript для фиксации поля ввода
+        val js = """
+            function fixInputPosition() {
+                // Добавляем стили
+                var style = document.createElement('style');
+                style.textContent = `
+                    .input-box-container {
+                        position: fixed !important;
+                        bottom: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        z-index: 999999 !important;
+                        background: white !important;
+                        padding: 10px !important;
+                    }
+                    #message-input {
+                        position: relative !important;
+                        bottom: 0 !important;
+                    }
+                    .chat-container {
+                        margin-bottom: 60px !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // Находим поле ввода и его контейнер
+                const messageInput = document.querySelector('textarea, input[type="text"]');
+                if (messageInput) {
+                    const container = messageInput.closest('div');
+                    if (container) {
+                        container.classList.add('input-box-container');
+                    }
+                    
+                    // Добавляем обработчик фокуса
+                    messageInput.addEventListener('focus', function() {
+                        setTimeout(() => {
+                            window.scrollTo(0, 0);
+                            messageInput.scrollIntoView(false);
+                        }, 100);
+                    });
+                }
+            }
 
-    private fun setupAds() {
-        MobileAds.initialize(this)
-        mAdView = findViewById(R.id.adView)
-        val adRequest = AdRequest.Builder().build()
-        mAdView.loadAd(adRequest)
+            // Запускаем функцию после загрузки страницы
+            if (document.readyState === 'complete') {
+                fixInputPosition();
+            } else {
+                window.addEventListener('load', fixInputPosition);
+            }
+
+            // Запускаем периодически для динамически добавляемых элементов
+            setInterval(fixInputPosition, 1000);
+        """.trimIndent()
+
+        webView.evaluateJavascript(js, null)
+
+        // Загружаем страницу
+        webView.loadUrl("https://chatgptchatapp.com/")
     }
 
     private fun setupBackHandler() {
@@ -137,49 +164,45 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        webView.saveState(outState)
+    private fun requestPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO,
+            Manifest.permission.READ_MEDIA_AUDIO,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        )
+        
+        val notGrantedPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        
+        if (notGrantedPermissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(
+                this,
+                notGrantedPermissions.toTypedArray(),
+                100
+            )
+        }
+    }
+
+    private fun setupBannerAd() {
+        adView = findViewById(R.id.adView)
+        val adRequest = AdRequest.Builder().build()
+        adView.loadAd(adRequest)
+    }
+
+    override fun onPause() {
+        adView.pause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        adView.resume()
     }
 
     override fun onDestroy() {
-        webView.clearCache(true)
-        webView.clearHistory()
-        webView.clearFormData()
-        webView.clearSslPreferences()
+        adView.destroy()
         super.onDestroy()
-    }
-
-    private fun isUrlSafe(url: String?): Boolean {
-        return url != null && (url.startsWith("https://") ||
-                url.startsWith("http://") &&
-                url.contains("trusted-domain.com"))
-    }
-
-    private fun openFileChooser() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        }
-        filePickerLauncher.launch(Intent.createChooser(intent, "Выберите файл"))
-    }
-
-    private fun showSecurityAlert(error: SslError?) {
-        val message = when (error?.primaryError) {
-            SslError.SSL_DATE_INVALID -> "Сертификат просрочен"
-            SslError.SSL_EXPIRED -> "Сертификат истек"
-            SslError.SSL_IDMISMATCH -> "Несоответствие имени хоста"
-            SslError.SSL_INVALID -> "Недействительный сертификат"
-            SslError.SSL_NOTYETVALID -> "Сертификат еще не действителен"
-            SslError.SSL_UNTRUSTED -> "Ненадежный сертификат"
-            else -> "Проблема с безопасностью соединения"
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Предупреждение безопасности")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
     }
 }
