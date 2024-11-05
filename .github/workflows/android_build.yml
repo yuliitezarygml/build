@@ -65,6 +65,11 @@ jobs:
       - name: Build AAB (Release)
         run: ./gradlew bundleRelease 2>&1 | tee -a build_log.txt || true
 
+      - name: Verify APK and AAB Files
+        run: |
+          ls -la app/build/outputs/apk/release/
+          ls -la app/build/outputs/bundle/release/
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -96,8 +101,8 @@ jobs:
           asset_name: app-release.aab
           asset_content_type: application/octet-stream
 
-      # Send notification to Telegram
-      - name: Notify Telegram
+      # Send notification and files to Telegram
+      - name: Notify Telegram and Send Files
         if: always() # Отправляет уведомление независимо от успеха или неудачи сборки
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -115,6 +120,24 @@ jobs:
               MESSAGE="Проект: ${GITHUB_REPOSITORY}%0AСтатус: ${STATUS}%0AВерсия: ${{ env.new_tag }}%0AЛог сборки недоступен."
             fi
           fi
+          
+          # Отправка сообщения в Telegram
           curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage \
             -d chat_id=${TELEGRAM_CHAT_ID} \
             -d text="$MESSAGE"
+
+          # Отправка APK файла в Telegram, если он существует
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
+              -F chat_id=${TELEGRAM_CHAT_ID} \
+              -F document=@app/build/outputs/apk/release/app-release.apk \
+              -F caption="APK файл сборки: ${{ env.new_tag }}"
+          fi
+
+          # Отправка AAB файла в Telegram, если он существует
+          if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
+            curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
+              -F chat_id=${TELEGRAM_CHAT_ID} \
+              -F document=@app/build/outputs/bundle/release/app-release.aab \
+              -F caption="AAB файл сборки: ${{ env.new_tag }}"
+          fi
