@@ -1,4 +1,3 @@
-
 name: Android CI
 
 on:
@@ -35,6 +34,10 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-
+
+      # Grant execute permission for Gradle wrapper
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
 
       # Build the project
       - name: Build with Gradle
