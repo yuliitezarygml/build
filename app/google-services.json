@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "687721812511",
+    "project_id": "fsocientygpt-e2191",
+    "storage_bucket": "fsocientygpt-e2191.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:687721812511:android:c3cfefa82a298df8c97b2a",
+        "android_client_info": {
+          "package_name": "com.yuliitezary.gpt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUASDFhn3paFxkxJmbf8iGuwtLykVeES0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      },
+      "admob_app_id": "ca-app-pub-1609298814669887~8251722665"
+    }
+  ],
+  "configuration_version": "1"
+}

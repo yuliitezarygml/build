@@ -27,6 +27,11 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.ViewCompat
 import android.view.WindowManager
 import android.graphics.Rect
+import android.util.Log
+import com.google.firebase.messaging.FirebaseMessaging
+import android.widget.Toast
+import com.google.firebase.perf.metrics.AddTrace
+import com.google.firebase.perf.FirebasePerformance
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -64,6 +69,17 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupBackHandler()
         setupBannerAd()
+
+        requestNotificationPermission()
+        getFCMToken()
+
+        // Подписываем пользователя на тему при запуске приложения
+        FirebaseMessaging.getInstance().subscribeToTopic("all_users")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(TAG, "Успешно подписались на уведомления")
+                }
+            }
     }
 
     private fun setupWebView() {
@@ -204,5 +220,55 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         adView.destroy()
         super.onDestroy()
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    PERMISSION_REQUEST_CODE
+                )
+            }
+        }
+    }
+
+    private fun getFCMToken() {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w(TAG, "Ошибка получения FCM токена", task.exception)
+                return@addOnCompleteListener
+            }
+
+            // Получаем новый FCM токен и только логируем его
+            val token = task.result
+            Log.d(TAG, "FCM Token: $token")
+        }
+    }
+
+    // Отслеживание времени выполнения метода
+    @AddTrace(name = "loadData")
+    private fun loadData() {
+        // Ваш код
+    }
+
+    // Пользовательская трассировка
+    private fun customTrace() {
+        val trace = FirebasePerformance.getInstance().newTrace("custom_trace")
+        trace.start()
+        
+        // Ваш код для измерения
+        
+        trace.stop()
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val PERMISSION_REQUEST_CODE = 101
     }
 }
