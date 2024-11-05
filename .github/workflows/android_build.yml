@@ -57,10 +57,10 @@ jobs:
           git push origin ${{ steps.get_latest_tag.outputs.new_tag }}
 
       - name: Build APK (Release)
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease 2>&1 | tee build_log.txt
 
       - name: Build AAB (Release)
-        run: ./gradlew bundleRelease
+        run: ./gradlew bundleRelease 2>&1 | tee -a build_log.txt
 
       - name: Create Release
         id: create_release
@@ -102,9 +102,12 @@ jobs:
         run: |
           if [[ "${{ job.status }}" == "success" ]]; then
             STATUS="Сборка успешно завершена!"
+            MESSAGE="Проект: ${GITHUB_REPOSITORY}%0AСтатус: ${STATUS}%0AВерсия: ${{ steps.get_latest_tag.outputs.new_tag }}"
           else
             STATUS="Сборка завершилась с ошибками!"
+            ERROR_LOG=$(tail -n 10 build_log.txt)
+            MESSAGE="Проект: ${GITHUB_REPOSITORY}%0AСтатус: ${STATUS}%0AВерсия: ${{ steps.get_latest_tag.outputs.new_tag }}%0AПоследние ошибки:%0A${ERROR_LOG}"
           fi
           curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage \
             -d chat_id=${TELEGRAM_CHAT_ID} \
-            -d text="Проект: ${GITHUB_REPOSITORY}%0AСтатус: ${STATUS}%0AВерсия: ${{ steps.get_latest_tag.outputs.new_tag }}"
+            -d text="$MESSAGE"
