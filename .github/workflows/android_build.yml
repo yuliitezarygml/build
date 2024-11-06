@@ -45,7 +45,7 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.0.0"
+            new_tag="v1.1.3"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
