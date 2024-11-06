@@ -40,7 +40,7 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.1.2"
+            new_tag="v1.0.0"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
@@ -76,6 +76,18 @@ jobs:
           echo "Listing APK and AAB files:"
           find app/build/outputs -type f
 
+      - name: Set APK Path
+        id: apk_path
+        run: |
+          APK_PATH=$(find app/build/outputs -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_ENV
+
+      - name: Set AAB Path
+        id: aab_path
+        run: |
+          AAB_PATH=$(find app/build/outputs -name "*.aab" | head -n 1)
+          echo "aab_path=$AAB_PATH" >> $GITHUB_ENV
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -88,22 +100,24 @@ jobs:
           prerelease: false
 
       - name: Upload APK to Release
+        if: success()
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app/build/outputs/apk/release/app-release.apk
+          asset_path: ${{ env.apk_path }}
           asset_name: app-release.apk
           asset_content_type: application/vnd.android.package-archive
 
       - name: Upload AAB to Release
+        if: success()
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app/build/outputs/bundle/release/app-release.aab
+          asset_path: ${{ env.aab_path }}
           asset_name: app-release.aab
           asset_content_type: application/octet-stream
 
@@ -130,16 +144,16 @@ jobs:
             -d chat_id=${TELEGRAM_CHAT_ID} \
             -d text="$MESSAGE"
 
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          if [ -f "${{ env.apk_path }}" ]; then
             curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
               -F chat_id=${TELEGRAM_CHAT_ID} \
-              -F document=@app/build/outputs/apk/release/app-release.apk \
+              -F document=@${{ env.apk_path }} \
               -F caption="APK файл сборки: ${{ env.new_tag }}"
           fi
 
-          if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
+          if [ -f "${{ env.aab_path }}" ]; then
             curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
               -F chat_id=${TELEGRAM_CHAT_ID} \
-              -F document=@app/build/outputs/bundle/release/app-release.aab \
+              -F document=@${{ env.aab_path }} \
               -F caption="AAB файл сборки: ${{ env.new_tag }}"
           fi
