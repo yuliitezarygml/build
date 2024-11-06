@@ -49,7 +49,7 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.2.7"
+            new_tag="v1.2.9"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
@@ -101,9 +101,8 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
-          token: ${{ secrets.MY_GITHUB_TOKEN }}
           tag_name: ${{ env.new_tag }}
           release_name: "Release ${{ env.new_tag }}"
           draft: false
@@ -113,7 +112,7 @@ jobs:
         if: success()
         uses: actions/upload-release-asset@v1
         env:
-          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ env.apk_path }}
@@ -124,7 +123,7 @@ jobs:
         if: success()
         uses: actions/upload-release-asset@v1
         env:
-          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ env.aab_path }}
