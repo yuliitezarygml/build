@@ -40,19 +40,19 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.1.0"
+            new_tag="v1.0.0"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
             patch=$((patch+1))
             new_tag="v${major}.${minor}.${patch}"
-            
-            # Проверка, существует ли тег на удаленном репозитории
-            while git rev-parse "refs/tags/$new_tag" >/dev/null 2>&1; do
-              patch=$((patch+1))
-              new_tag="v${major}.${minor}.${patch}"
-            done
           fi
+
+          while git rev-parse "refs/tags/$new_tag" >/dev/null 2>&1; do
+            patch=$((patch+1))
+            new_tag="v${major}.${minor}.${patch}"
+          done
+
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
       - name: Create new tag
@@ -61,8 +61,6 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-          # Создание нового уникального тега
           git tag ${{ env.new_tag }}
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
           git push origin ${{ env.new_tag }}
@@ -75,8 +73,8 @@ jobs:
 
       - name: Verify APK and AAB Files
         run: |
-          ls -la app/build/outputs/apk/release/
-          ls -la app/build/outputs/bundle/release/
+          echo "Listing APK and AAB files:"
+          find app/build/outputs -type f
 
       - name: Create Release
         id: create_release
@@ -109,9 +107,8 @@ jobs:
           asset_name: app-release.aab
           asset_content_type: application/octet-stream
 
-      # Send notification and files to Telegram
       - name: Notify Telegram and Send Files
-        if: always() # Отправляет уведомление независимо от успеха или неудачи сборки
+        if: always()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -129,12 +126,10 @@ jobs:
             fi
           fi
           
-          # Отправка сообщения в Telegram
           curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage \
             -d chat_id=${TELEGRAM_CHAT_ID} \
             -d text="$MESSAGE"
 
-          # Отправка APK файла в Telegram, если он существует
           if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
             curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
               -F chat_id=${TELEGRAM_CHAT_ID} \
@@ -142,7 +137,6 @@ jobs:
               -F caption="APK файл сборки: ${{ env.new_tag }}"
           fi
 
-          # Отправка AAB файла в Telegram, если он существует
           if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
             curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument \
               -F chat_id=${TELEGRAM_CHAT_ID} \
