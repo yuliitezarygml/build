@@ -45,7 +45,7 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.0.0"
+            new_tag="v1.12.5"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
@@ -151,3 +151,13 @@ jobs:
             -d chat_id=${TELEGRAM_CHAT_ID} \
             -d text="$MESSAGE" \
             -d parse_mode="Markdown"
+
+      - name: Create Pull Request for Release Updates
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Automatic update of release artifacts"
+          branch: "release-updates"
+          title: "Update release artifacts"
+          body: "This pull request was automatically created to update the release artifacts."
+          labels: ["automated-pr"]
