@@ -38,7 +38,7 @@ jobs:
       - name: Get the latest tag
         id: get_latest_tag
         run: |
-          latest_tag=$(git tag -l | tail -n 1)
+          latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
             new_tag="v1.0.0"
           else
@@ -46,6 +46,12 @@ jobs:
             IFS='.' read -r major minor patch <<< "$version"
             patch=$((patch+1))
             new_tag="v${major}.${minor}.${patch}"
+            
+            # Проверка, существует ли тег на удаленном репозитории
+            while git rev-parse "refs/tags/$new_tag" >/dev/null 2>&1; do
+              patch=$((patch+1))
+              new_tag="v${major}.${minor}.${patch}"
+            done
           fi
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
@@ -56,7 +62,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          # Создание нового тега
+          # Создание нового уникального тега
           git tag ${{ env.new_tag }}
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
           git push origin ${{ env.new_tag }}
