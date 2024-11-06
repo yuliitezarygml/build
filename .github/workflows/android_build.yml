@@ -9,8 +9,8 @@ on:
       - main
 
 permissions:
-  contents: write      # Для записи содержимого репозитория
-  pull-requests: write # Для создания Pull Request
+  contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -49,7 +49,7 @@ jobs:
         run: |
           latest_tag=$(git tag -l --sort=-v:refname | head -n 1)
           if [ -z "$latest_tag" ]; then
-            new_tag="v1.2.6"
+            new_tag="v1.2.7"
           else
             version="${latest_tag//v/}"
             IFS='.' read -r major minor patch <<< "$version"
@@ -66,12 +66,12 @@ jobs:
 
       - name: Create new tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag ${{ env.new_tag }}
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          git remote set-url origin https://x-access-token:${MY_GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
           git push origin ${{ env.new_tag }}
 
       - name: Build APK (Release)
@@ -101,8 +101,9 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           tag_name: ${{ env.new_tag }}
           release_name: "Release ${{ env.new_tag }}"
           draft: false
@@ -112,7 +113,7 @@ jobs:
         if: success()
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ env.apk_path }}
@@ -123,7 +124,7 @@ jobs:
         if: success()
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ env.aab_path }}
@@ -159,7 +160,7 @@ jobs:
       - name: Create Pull Request for Release Updates
         uses: peter-evans/create-pull-request@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
           commit-message: "Automatic update of release artifacts"
           branch: "release-updates"
           title: "Update release artifacts"
