@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupWebView() {
         webView = findViewById(R.id.webView)
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = CustomWebViewClient()
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
                 webView: WebView?,
@@ -104,7 +104,6 @@ class MainActivity : AppCompatActivity() {
             allowFileAccess = true
             allowContentAccess = true
             loadsImagesAutomatically = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
         // Инжектируем CSS и JavaScript для фиксации поля ввода
